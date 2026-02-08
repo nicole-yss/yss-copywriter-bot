@@ -40,7 +40,7 @@ export function MessageBubble({ message, contentType, platform, userMessage }: M
       <div
         className={`max-w-[85%] rounded-2xl px-4 py-3 ${
           isUser
-            ? "bg-gradient-to-br from-yss-accent to-[#b5a474] text-yss-navy shadow-lg shadow-yss-accent/10"
+            ? "bg-white text-[#071d2b] shadow-lg shadow-white/10"
             : "gradient-card text-white"
         }`}
       >

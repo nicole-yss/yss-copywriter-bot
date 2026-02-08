@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx next build)",
+      "Bash(source:*)",
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(brew install:*)",
+      "Bash(supabase:*)",
+      "Bash(open \"https://supabase.com/dashboard/project/wnmpjukkyxsmxgwmmnsr/sql/new\")",
+      "Bash(pbcopy:*)",
+      "Bash(curl:*)",
+      "Bash(open:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npm install:*)",
+      "Bash(python3 -c \"\nimport os, httpx\nfrom dotenv import load_dotenv\nload_dotenv\\(\\)\n\nurl = os.getenv\\(''SUPABASE_URL''\\)\nkey = os.getenv\\(''SUPABASE_SERVICE_ROLE_KEY''\\)\n\nwith open\\(''supabase/migrations/002_content_feedback.sql'', ''r''\\) as f:\n    sql = f.read\\(\\)\n\n# Use Supabase''s REST SQL endpoint\nresponse = httpx.post\\(\n    f''{url}/rest/v1/rpc/exec_sql'',\n    headers={\n        ''apikey'': key,\n        ''Authorization'': f''Bearer {key}'',\n        ''Content-Type'': ''application/json'',\n    },\n    json={''query'': sql},\n    timeout=30,\n\\)\nprint\\(f''Status: {response.status_code}''\\)\nprint\\(f''Response: {response.text[:500]}''\\)\n\")",
+      "Bash(python3:*)",
+      "Bash(.venv/bin/python3:*)",
+      "Bash(npx supabase:*)",
+      "Bash(git init:*)",
+      "Bash(git branch:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: YSS Brand Content Copywriter\n\nFull-stack AI-powered social media content generator for YourSalonSupport.\nPython WAT backend \\(FastAPI\\) + Next.js frontend with streaming chat,\nfile uploads, Perplexity research, RAG with Supabase pgvector, and\nfeedback-driven improvement loop.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(kill:*)"
+    ]
+  }
+}
