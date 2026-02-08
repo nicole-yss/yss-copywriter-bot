@@ -1,0 +1,161 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-instrument-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  /* YSS Brand Colors - Updated */
+  --color-yss-navy: #071d2b;
+  --color-yss-navy-light: #0c2a3d;
+  --color-yss-cream: #ffffff;
+  --color-yss-cream-muted: #94a3b8;
+  --color-yss-accent: #c8b88a;
+  --color-yss-border: #163348;
+}
+
+:root {
+  --radius: 0.625rem;
+  /* YSS Dark Theme */
+  --background: #071d2b;
+  --foreground: #ffffff;
+  --card: #0c2a3d;
+  --card-foreground: #ffffff;
+  --popover: #0c2a3d;
+  --popover-foreground: #ffffff;
+  --primary: #c8b88a;
+  --primary-foreground: #071d2b;
+  --secondary: #0c2a3d;
+  --secondary-foreground: #ffffff;
+  --muted: #0c2a3d;
+  --muted-foreground: #94a3b8;
+  --accent: #c8b88a;
+  --accent-foreground: #071d2b;
+  --destructive: #ef4444;
+  --border: #163348;
+  --input: #163348;
+  --ring: #c8b88a;
+  --chart-1: #c8b88a;
+  --chart-2: #8b9cf7;
+  --chart-3: #6ee7b7;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
+  --sidebar: #051722;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #c8b88a;
+  --sidebar-primary-foreground: #071d2b;
+  --sidebar-accent: #0c2a3d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #163348;
+  --sidebar-ring: #c8b88a;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom scrollbar for the chat area */
+.chat-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.chat-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scroll::-webkit-scrollbar-thumb {
+  background: #163348;
+  border-radius: 3px;
+}
+.chat-scroll::-webkit-scrollbar-thumb:hover {
+  background: #1e4560;
+}
+
+/* Thinking indicator animations */
+@keyframes thinking-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+@keyframes thinking-bar {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 0%; }
+}
+.thinking-dot {
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+.thinking-bar {
+  animation: thinking-bar 2s ease-in-out infinite;
+}
+
+/* Gradient utilities */
+.gradient-bg {
+  background: linear-gradient(135deg, #071d2b 0%, #0a2540 50%, #0d1f35 100%);
+}
+.gradient-header {
+  background: linear-gradient(180deg, #0c2a3d 0%, rgba(7, 29, 43, 0) 100%);
+}
+.gradient-input {
+  background: linear-gradient(180deg, rgba(7, 29, 43, 0) 0%, #0a2540 100%);
+}
+.gradient-accent-glow {
+  background: radial-gradient(ellipse at 50% 0%, rgba(200, 184, 138, 0.08) 0%, transparent 70%);
+}
+.gradient-card {
+  background: linear-gradient(145deg, #0e2f45 0%, #0a2438 100%);
+  border: 1px solid rgba(22, 51, 72, 0.6);
+}
+.gradient-card:hover {
+  border-color: rgba(200, 184, 138, 0.2);
+}
+.gradient-button {
+  background: linear-gradient(135deg, #c8b88a 0%, #b5a474 100%);
+}
+.gradient-button:hover {
+  background: linear-gradient(135deg, #d4c89e 0%, #c8b88a 100%);
+}
