@@ -46,8 +46,8 @@
   --radius-4xl: calc(var(--radius) + 16px);
 
   /* YSS Brand Colors - Updated */
-  --color-yss-navy: #071d2b;
-  --color-yss-navy-light: #0c2a3d;
+  --color-yss-navy: #040e16;
+  --color-yss-navy-light: #091e2e;
   --color-yss-cream: #ffffff;
   --color-yss-cream-muted: #94a3b8;
   --color-yss-accent: #c8b88a;
@@ -57,20 +57,20 @@
 :root {
   --radius: 0.625rem;
   /* YSS Dark Theme */
-  --background: #071d2b;
+  --background: #040e16;
   --foreground: #ffffff;
   --card: #0c2a3d;
   --card-foreground: #ffffff;
   --popover: #0c2a3d;
   --popover-foreground: #ffffff;
   --primary: #c8b88a;
-  --primary-foreground: #071d2b;
+  --primary-foreground: #040e16;
   --secondary: #0c2a3d;
   --secondary-foreground: #ffffff;
   --muted: #0c2a3d;
   --muted-foreground: #94a3b8;
   --accent: #c8b88a;
-  --accent-foreground: #071d2b;
+  --accent-foreground: #040e16;
   --destructive: #ef4444;
   --border: #163348;
   --input: #163348;
@@ -83,7 +83,7 @@
   --sidebar: #051722;
   --sidebar-foreground: #ffffff;
   --sidebar-primary: #c8b88a;
-  --sidebar-primary-foreground: #071d2b;
+  --sidebar-primary-foreground: #040e16;
   --sidebar-accent: #0c2a3d;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #163348;
@@ -97,7 +97,7 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-instrument-sans), "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
-    background-color: #071d2b;
+    background-color: #040e16;
     color: #ffffff;
   }
 }
@@ -138,19 +138,19 @@
 
 /* Gradient utilities */
 .gradient-bg {
-  background: linear-gradient(135deg, #071d2b 0%, #0a2540 50%, #0d1f35 100%);
+  background: linear-gradient(135deg, #040e16 0%, #071d2b 50%, #0a1d2d 100%);
 }
 .gradient-header {
-  background: linear-gradient(180deg, #0c2a3d 0%, rgba(7, 29, 43, 0) 100%);
+  background: linear-gradient(180deg, #091e2e 0%, rgba(4, 14, 22, 0) 100%);
 }
 .gradient-input {
-  background: linear-gradient(180deg, rgba(7, 29, 43, 0) 0%, #0a2540 100%);
+  background: linear-gradient(180deg, rgba(4, 14, 22, 0) 0%, #071d2b 100%);
 }
 .gradient-accent-glow {
-  background: radial-gradient(ellipse at 50% 0%, rgba(200, 184, 138, 0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(200, 184, 138, 0.06) 0%, transparent 70%);
 }
 .gradient-card {
-  background: linear-gradient(145deg, #0e2f45 0%, #0a2438 100%);
+  background: linear-gradient(145deg, #0b2538 0%, #081d2e 100%);
   border: 1px solid rgba(22, 51, 72, 0.6);
 }
 .gradient-card:hover {
@@ -161,4 +161,32 @@
 }
 .gradient-button:hover {
   background: linear-gradient(135deg, #d4c89e 0%, #c8b88a 100%);
+}
+
+/* Chat bubble entrance animations */
+@keyframes slide-in-right {
+  0% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes slide-in-left {
+  0% {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.bubble-user {
+  animation: slide-in-right 0.3s ease-out;
+}
+.bubble-assistant {
+  animation: slide-in-left 0.3s ease-out;
 }

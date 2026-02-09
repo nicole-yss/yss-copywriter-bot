@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { MessageBubble } from "./message-bubble";
 import { ContentTypeSelector } from "./content-type-selector";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Home, LogOut, Settings, User } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface ChatMessage {
   id: string;
@@ -33,6 +36,47 @@ const ACCEPTED_TYPES = [
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
+const ALL_SUGGESTIONS = [
+  "Write a caption about salon growth tips",
+  "Create a carousel about client retention",
+  "Draft an EDM for our new package launch",
+  "Script a reel about booking systems",
+  "Write a motivational post for salon owners",
+  "Create a carousel breaking down pricing strategies",
+  "Draft a caption celebrating a client milestone",
+  "Script a reel showing a day in the salon life",
+  "Write an EDM announcing a seasonal promotion",
+  "Create a post about the importance of salon branding",
+  "Draft a carousel with tips for new salon owners",
+  "Write a caption for a before-and-after transformation",
+  "Script a reel about common salon mistakes to avoid",
+  "Create a post about salon team culture",
+  "Draft an EDM for a referral rewards program",
+  "Write a carousel about social media tips for salons",
+  "Create a caption about work-life balance in the industry",
+  "Script a reel showcasing your unique selling points",
+  "Draft a post about the value of ongoing education",
+  "Write an EDM welcoming new subscribers to the community",
+];
+
+function getRandomSuggestions(pool: string[], count: number): string[] {
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
+
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  caption: "Caption",
+  carousel: "Carousel Post",
+  edm: "EDM Copy",
+  reel_script: "Reel Script",
+};
+
+const PLATFORM_LABELS: Record<string, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+};
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
@@ -46,6 +90,7 @@ function fileIcon(type: string): string {
 }
 
 export function ChatInterface() {
+  const router = useRouter();
   const [contentType, setContentType] = useState("caption");
   const [platform, setPlatform] = useState("instagram");
   const [input, setInput] = useState("");
@@ -53,12 +98,114 @@ export function ChatInterface() {
   const [files, setFiles] = useState<AttachedFile[]>([]);
   const [status, setStatus] = useState<"ready" | "submitted" | "streaming">("ready");
   const [dragOver, setDragOver] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>(
+    ALL_SUGGESTIONS.slice(0, 4)
+  );
+  const [currentUser, setCurrentUser] = useState<{
+    email: string;
+    name: string | null;
+    role: string;
+    initial: string;
+  } | null>(null);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Randomize suggestions on client mount to avoid hydration mismatch
+  useEffect(() => {
+    setSuggestions(getRandomSuggestions(ALL_SUGGESTIONS, 4));
+  }, []);
+
+  // Fetch current user info
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const name = user.user_metadata?.full_name || null;
+        const email = user.email || "";
+        setCurrentUser({
+          email,
+          name,
+          role: user.user_metadata?.role || "member",
+          initial: (name || email || "?")[0].toUpperCase(),
+        });
+      }
+    });
+  }, []);
+
   const isLoading = status === "submitted" || status === "streaming";
+
+  const handleReset = () => {
+    setMessages([]);
+    setInput("");
+    setFiles([]);
+    setStatus("ready");
+    setSuggestions(getRandomSuggestions(ALL_SUGGESTIONS, 4));
+  };
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
+
+  const handleSaveName = async () => {
+    if (!nameInput.trim()) return;
+    setSavingName(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({
+      data: { full_name: nameInput.trim() },
+    });
+    if (!error && currentUser) {
+      const newName = nameInput.trim();
+      setCurrentUser({
+        ...currentUser,
+        name: newName,
+        initial: newName[0].toUpperCase(),
+      });
+    }
+    setSavingName(false);
+    setEditingName(false);
+  };
+
+  const handleContentTypeChange = (newType: string) => {
+    if (newType === contentType) return;
+    setContentType(newType);
+    if (messages.length > 0 && status === "ready") {
+      const label = CONTENT_TYPE_LABELS[newType] || newType;
+      const platLabel = PLATFORM_LABELS[platform] || platform;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `Got it! I'll now create **${label}** content for **${platLabel}**. What would you like me to write about?`,
+        },
+      ]);
+    }
+  };
+
+  const handlePlatformChange = (newPlatform: string) => {
+    if (newPlatform === platform) return;
+    setPlatform(newPlatform);
+    if (messages.length > 0 && status === "ready") {
+      const label = CONTENT_TYPE_LABELS[contentType] || contentType;
+      const platLabel = PLATFORM_LABELS[newPlatform] || newPlatform;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: `Got it! I'll now create **${label}** content for **${platLabel}**. What would you like me to write about?`,
+        },
+      ]);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -199,6 +346,15 @@ export function ChatInterface() {
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.06] backdrop-blur-sm bg-white/[0.02]">
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleReset}
+            className="text-white/50 hover:text-yss-accent hover:bg-white/[0.04] h-8 w-8 transition-colors"
+            title="New chat"
+          >
+            <Home className="h-4 w-4" />
+          </Button>
           <h1 className="text-lg font-semibold tracking-tight text-white">
             YSS Content Copywriter
           </h1>
@@ -206,12 +362,106 @@ export function ChatInterface() {
             AI
           </span>
         </div>
-        <ContentTypeSelector
-          contentType={contentType}
-          onContentTypeChange={setContentType}
-          platform={platform}
-          onPlatformChange={setPlatform}
-        />
+        <div className="flex items-center gap-2">
+          <ContentTypeSelector
+            contentType={contentType}
+            onContentTypeChange={handleContentTypeChange}
+            platform={platform}
+            onPlatformChange={handlePlatformChange}
+          />
+
+          {/* User profile dropdown */}
+          <div className="relative group">
+            <button className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-white/[0.04] transition-colors">
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yss-accent/30 to-yss-accent/10 border border-yss-accent/20 flex items-center justify-center text-xs font-semibold text-yss-accent">
+                {currentUser?.initial || <User className="h-3.5 w-3.5" />}
+              </div>
+              {currentUser && (
+                <span className="text-sm text-white/50 hidden sm:inline max-w-[120px] truncate">
+                  {currentUser.name || currentUser.email.split("@")[0]}
+                </span>
+              )}
+            </button>
+
+            {/* Dropdown */}
+            <div className="absolute right-0 top-full mt-1 w-64 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
+              <div className="bg-[#091e2e] border border-white/[0.08] rounded-xl shadow-xl shadow-black/40 overflow-hidden">
+                {/* User info */}
+                <div className="px-4 py-3 border-b border-white/[0.06]">
+                  <p className="text-sm font-medium text-white truncate">
+                    {currentUser?.name || currentUser?.email || "Loading..."}
+                  </p>
+                  {currentUser?.name && (
+                    <p className="text-xs text-white/40 truncate mt-0.5">
+                      {currentUser.email}
+                    </p>
+                  )}
+                  {currentUser?.role === "admin" && (
+                    <span className="inline-block mt-1.5 text-[10px] font-medium px-2 py-0.5 rounded-full bg-yss-accent/15 text-yss-accent border border-yss-accent/20">
+                      Admin
+                    </span>
+                  )}
+                </div>
+
+                {/* Edit display name */}
+                <div className="px-4 py-2.5 border-b border-white/[0.06]">
+                  {editingName ? (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Display name"
+                        className="flex-1 text-sm bg-white/[0.06] border border-white/[0.1] rounded-lg px-2.5 py-1.5 text-white placeholder:text-white/30 focus:outline-none focus:border-yss-accent/30"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveName();
+                          if (e.key === "Escape") setEditingName(false);
+                        }}
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={savingName}
+                        className="text-xs px-2.5 py-1.5 rounded-lg bg-yss-accent/20 text-yss-accent hover:bg-yss-accent/30 transition-colors disabled:opacity-40"
+                      >
+                        {savingName ? "..." : "Save"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setNameInput(currentUser?.name || "");
+                        setEditingName(true);
+                      }}
+                      className="flex items-center gap-2.5 w-full text-sm text-white/50 hover:text-white/80 transition-colors py-0.5"
+                    >
+                      <User className="h-3.5 w-3.5" />
+                      Edit display name
+                    </button>
+                  )}
+                </div>
+
+                {/* Actions */}
+                {currentUser?.role === "admin" && (
+                  <button
+                    onClick={() => router.push("/admin")}
+                    className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-white/50 hover:text-white/80 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
+                  >
+                    <Settings className="h-3.5 w-3.5" />
+                    Admin settings
+                  </button>
+                )}
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-400/70 hover:text-red-400 hover:bg-white/[0.04] transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
@@ -244,12 +494,7 @@ export function ChatInterface() {
                 You can also attach photos, PDFs, or text files for reference.
               </p>
               <div className="grid grid-cols-2 gap-2.5 pt-4">
-                {[
-                  "Write a caption about salon growth tips",
-                  "Create a carousel about client retention",
-                  "Draft an EDM for our new package launch",
-                  "Script a reel about booking systems",
-                ].map((suggestion) => (
+                {suggestions.map((suggestion) => (
                   <button
                     key={suggestion}
                     onClick={() => setInput(suggestion)}

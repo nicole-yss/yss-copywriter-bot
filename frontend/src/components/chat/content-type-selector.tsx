@@ -27,7 +27,7 @@ export function ContentTypeSelector({
         <SelectTrigger className="w-[160px] bg-white/[0.04] border-white/[0.08] text-sm text-white hover:bg-white/[0.06] transition-colors">
           <SelectValue placeholder="Content Type" />
         </SelectTrigger>
-        <SelectContent className="bg-[#0c2a3d] border-white/[0.08]">
+        <SelectContent className="bg-[#091e2e] border-white/[0.08]">
           <SelectItem value="caption">Caption</SelectItem>
           <SelectItem value="carousel">Carousel Post</SelectItem>
           <SelectItem value="edm">EDM Copy</SelectItem>
@@ -39,7 +39,7 @@ export function ContentTypeSelector({
         <SelectTrigger className="w-[140px] bg-white/[0.04] border-white/[0.08] text-sm text-white hover:bg-white/[0.06] transition-colors">
           <SelectValue placeholder="Platform" />
         </SelectTrigger>
-        <SelectContent className="bg-[#0c2a3d] border-white/[0.08]">
+        <SelectContent className="bg-[#091e2e] border-white/[0.08]">
           <SelectItem value="instagram">Instagram</SelectItem>
           <SelectItem value="tiktok">TikTok</SelectItem>
           <SelectItem value="youtube">YouTube</SelectItem>
