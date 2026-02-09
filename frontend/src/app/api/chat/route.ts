@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Allow up to 60s for file processing + Claude streaming
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { messages, contentType, platform, files } = body;
+    const { messages, contentType, platform, files, sessionId } = body;
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Messages must be an array' }, { status: 400 });
@@ -17,6 +20,7 @@ export async function POST(request: NextRequest) {
       messages,
       contentType: contentType || 'caption',
       platform: platform || 'instagram',
+      sessionId: sessionId || undefined,
     };
 
     // Include files if present
@@ -43,11 +47,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No response body' }, { status: 500 });
     }
 
+    // Forward the session ID header from backend
+    const sessionIdHeader = response.headers.get('X-Session-Id') || '';
+
     return new Response(response.body, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'no-cache',
         'X-Accel-Buffering': 'no',
+        'X-Session-Id': sessionIdHeader,
       },
     });
   } catch (error) {

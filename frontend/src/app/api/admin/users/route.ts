@@ -12,7 +12,10 @@ async function requireAdmin() {
     return { error: "Not authenticated", status: 401 };
   }
 
-  if (user.user_metadata?.role !== "admin") {
+  // Verify role server-side via admin API to prevent self-promotion
+  const admin = createAdminClient();
+  const { data: serverUser } = await admin.auth.admin.getUserById(user.id);
+  if (serverUser?.user?.user_metadata?.role !== "admin") {
     return { error: "Admin access required", status: 403 };
   }
 

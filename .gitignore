@@ -36,3 +36,4 @@ frontend/out/
 .pytest_cache/
 .coverage
 htmlcov/
+.vercel

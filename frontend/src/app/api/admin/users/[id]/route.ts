@@ -2,37 +2,44 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-
+async function requireAdmin() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    return { error: "Not authenticated" as const, status: 401 as const };
   }
 
-  if (user.user_metadata?.role !== "admin") {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
+  // Verify role server-side via admin API to prevent self-promotion
+  const admin = createAdminClient();
+  const { data: serverUser } = await admin.auth.admin.getUserById(user.id);
+  if (serverUser?.user?.user_metadata?.role !== "admin") {
+    return { error: "Admin access required" as const, status: 403 as const };
   }
 
-  if (id === user.id) {
+  return { user, admin };
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  if (id === auth.user.id) {
     return NextResponse.json(
       { error: "You cannot delete your own account" },
       { status: 400 }
     );
   }
 
-  const admin = createAdminClient();
-  const { error } = await admin.auth.admin.deleteUser(id);
+  const { error } = await auth.admin.auth.admin.deleteUser(id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -46,21 +53,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
-
-  if (user.user_metadata?.role !== "admin") {
-    return NextResponse.json(
-      { error: "Admin access required" },
-      { status: 403 }
-    );
+  const auth = await requireAdmin();
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
   const body = await request.json();
@@ -70,8 +65,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
-  const { error } = await admin.auth.admin.updateUserById(id, {
+  const { error } = await auth.admin.auth.admin.updateUserById(id, {
     user_metadata: { role },
   });
 

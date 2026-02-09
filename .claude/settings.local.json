@@ -25,7 +25,16 @@
       "Bash(git branch:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: YSS Brand Content Copywriter\n\nFull-stack AI-powered social media content generator for YourSalonSupport.\nPython WAT backend \\(FastAPI\\) + Next.js frontend with streaming chat,\nfile uploads, Perplexity research, RAG with Supabase pgvector, and\nfeedback-driven improvement loop.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(kill:*)"
+      "Bash(kill:*)",
+      "Bash(vercel --version:*)",
+      "Bash(vercel login:*)",
+      "Bash(vercel:*)",
+      "Bash(printf:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)"
+    ],
+    "additionalDirectories": [
+      "/Users/macbook/YSS Brand Content Copywriter/frontend/src/app/api/sessions/[id]"
     ]
   }
 }

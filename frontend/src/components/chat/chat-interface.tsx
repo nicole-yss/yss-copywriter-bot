@@ -6,7 +6,7 @@ import { MessageBubble } from "./message-bubble";
 import { ContentTypeSelector } from "./content-type-selector";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Home, LogOut, Settings, User } from "lucide-react";
+import { Home, LogOut, Settings, User, MessageSquare, PanelLeftClose, PanelLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 interface ChatMessage {
@@ -21,6 +21,14 @@ interface AttachedFile {
   type: string;
   size: number;
   data: string; // base64
+}
+
+interface ChatSession {
+  id: string;
+  title: string;
+  created_at: string;
+  content_type_id: number | null;
+  platform_id: number | null;
 }
 
 const ACCEPTED_TYPES = [
@@ -110,6 +118,10 @@ export function ChatInterface() {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -139,11 +151,52 @@ export function ChatInterface() {
 
   const isLoading = status === "submitted" || status === "streaming";
 
+  const fetchSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    try {
+      const backendUrl = "/api/sessions";
+      const res = await fetch(backendUrl);
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data);
+      }
+    } catch (e) {
+      console.error("Failed to fetch sessions:", e);
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, []);
+
+  const loadSession = async (session: ChatSession) => {
+    try {
+      const res = await fetch(`/api/sessions/${session.id}/messages`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const loaded: ChatMessage[] = data.map((m: { id: string; role: string; content: string }) => ({
+        id: m.id || crypto.randomUUID(),
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
+      setMessages(loaded);
+      setSessionId(session.id);
+      setSidebarOpen(false);
+      setStatus("ready");
+      // Restore content type / platform from session
+      const ctMap: Record<number, string> = { 1: "caption", 2: "carousel", 3: "edm", 4: "reel_script" };
+      const pMap: Record<number, string> = { 1: "instagram", 2: "tiktok", 3: "youtube" };
+      if (session.content_type_id) setContentType(ctMap[session.content_type_id] || "caption");
+      if (session.platform_id) setPlatform(pMap[session.platform_id] || "instagram");
+    } catch (e) {
+      console.error("Failed to load session:", e);
+    }
+  };
+
   const handleReset = () => {
     setMessages([]);
     setInput("");
     setFiles([]);
     setStatus("ready");
+    setSessionId(null);
     setSuggestions(getRandomSuggestions(ALL_SUGGESTIONS, 4));
   };
 
@@ -272,6 +325,7 @@ export function ChatInterface() {
           messages: apiMessages,
           contentType,
           platform,
+          sessionId,
           files: sentFiles.map((f) => ({
             name: f.name,
             type: f.type,
@@ -281,7 +335,14 @@ export function ChatInterface() {
       });
 
       if (!response.ok || !response.body) {
-        throw new Error(`Request failed: ${response.status}`);
+        const errorText = await response.text().catch(() => "");
+        throw new Error(errorText || `Request failed (${response.status})`);
+      }
+
+      // Capture session ID from backend (auto-created on first message)
+      const returnedSessionId = response.headers.get("X-Session-Id");
+      if (returnedSessionId && !sessionId) {
+        setSessionId(returnedSessionId);
       }
 
       setStatus("streaming");
@@ -309,12 +370,21 @@ export function ChatInterface() {
       }
     } catch (error) {
       console.error("Chat error:", error);
+      const errMsg = error instanceof Error ? error.message : "Unknown error";
+      const isTimeout = errMsg.includes("FUNCTION_INVOCATION_TIMEOUT") || errMsg.includes("504");
+      const isBodySize = errMsg.includes("FUNCTION_PAYLOAD_TOO_LARGE") || errMsg.includes("413");
+      let userMessage = "Sorry, something went wrong. Please try again.";
+      if (isTimeout) {
+        userMessage = "The request timed out. Try sending a smaller file or a simpler message.";
+      } else if (isBodySize) {
+        userMessage = "The file is too large. Please try a smaller file (under 4MB).";
+      }
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
+          content: userMessage,
         },
       ]);
     } finally {
@@ -339,13 +409,96 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex h-full relative">
+      {/* Chat history sidebar */}
+      <div
+        className={`${
+          sidebarOpen ? "w-72" : "w-0"
+        } transition-all duration-200 overflow-hidden border-r border-white/[0.06] bg-white/[0.02] flex-shrink-0`}
+      >
+        <div className="w-72 h-full flex flex-col">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-white/70">Chat History</h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { handleReset(); setSidebarOpen(false); }}
+              className="text-white/40 hover:text-yss-accent hover:bg-white/[0.04] h-7 w-7 transition-colors"
+              title="New chat"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto chat-scroll">
+            {loadingSessions ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-yss-accent/50 thinking-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-yss-accent/50 thinking-dot" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-yss-accent/50 thinking-dot" />
+                </div>
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="px-4 py-8 text-center text-xs text-white/30">
+                No previous chats yet
+              </div>
+            ) : (
+              <div className="py-1">
+                {sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    onClick={() => loadSession(session)}
+                    className={`w-full text-left px-4 py-2.5 hover:bg-white/[0.04] transition-colors group ${
+                      sessionId === session.id ? "bg-white/[0.06]" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <MessageSquare className="h-3.5 w-3.5 text-white/25 mt-0.5 flex-shrink-0 group-hover:text-yss-accent/50" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-white/60 group-hover:text-white/80 truncate transition-colors">
+                          {session.title}
+                        </p>
+                        <p className="text-[10px] text-white/25 mt-0.5">
+                          {new Date(session.created_at).toLocaleDateString("en-AU", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1 min-w-0 relative">
       {/* Subtle accent glow at top */}
       <div className="absolute top-0 left-0 right-0 h-40 gradient-accent-glow pointer-events-none" />
 
       {/* Header */}
       <div className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.06] backdrop-blur-sm bg-white/[0.02]">
         <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setSidebarOpen((prev) => !prev);
+              if (!sidebarOpen && sessions.length === 0) fetchSessions();
+            }}
+            className="text-white/50 hover:text-yss-accent hover:bg-white/[0.04] h-8 w-8 transition-colors"
+            title="Chat history"
+          >
+            {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -624,6 +777,7 @@ export function ChatInterface() {
             {isLoading ? "..." : "Send"}
           </Button>
         </div>
+      </div>
       </div>
     </div>
   );

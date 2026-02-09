@@ -89,6 +89,80 @@ def build_content_blocks(text: str, files: list[dict]) -> list[dict] | str:
     return blocks
 
 
+FEEDBACK_POSITIVE = {
+    "love it", "perfect", "great", "yes", "good", "nice", "amazing",
+    "exactly", "that works", "nailed it", "keep it", "on brand",
+    "this is it", "spot on", "brilliant", "awesome",
+}
+FEEDBACK_NEGATIVE = {
+    "too formal", "too casual", "too long", "too short", "shorter",
+    "longer", "change", "don't like", "more", "less", "not right",
+    "off brand", "try again", "rework", "redo", "tweak", "rewrite",
+    "not quite", "tone down", "tone up", "too much", "not enough",
+}
+
+
+def _is_feedback_message(text: str) -> tuple[bool, str]:
+    """Check if a user message is feedback on previous output. Returns (is_feedback, rating)."""
+    lower = text.lower().strip()
+    # Short messages after an assistant response are likely feedback
+    if len(lower.split()) > 40:
+        return False, ""
+    for phrase in FEEDBACK_POSITIVE:
+        if phrase in lower:
+            return True, "positive"
+    for phrase in FEEDBACK_NEGATIVE:
+        if phrase in lower:
+            return True, "negative"
+    return False, ""
+
+
+def _save_conversational_feedback(messages: list[dict], content_type: str, platform: str):
+    """Detect and save conversational feedback from chat history."""
+    if len(messages) < 2:
+        return
+    # Check if the latest user message is feedback on a prior assistant message
+    latest = messages[-1]
+    if latest.get("role") != "user":
+        return
+    # Find the most recent assistant message
+    assistant_msg = None
+    user_msg_before = None
+    for m in reversed(messages[:-1]):
+        if m["role"] == "assistant" and assistant_msg is None:
+            assistant_msg = m["content"]
+        elif m["role"] == "user" and assistant_msg is not None:
+            user_msg_before = m["content"]
+            break
+
+    if not assistant_msg:
+        return
+
+    is_feedback, rating = _is_feedback_message(latest["content"])
+    if not is_feedback:
+        return
+
+    try:
+        embedding = generate_embedding(assistant_msg[:2000])
+    except Exception:
+        embedding = None
+
+    try:
+        supabase = get_supabase_client()
+        supabase.table("content_feedback").insert({
+            "content_type": content_type,
+            "platform": platform,
+            "user_message": user_msg_before or "",
+            "assistant_message": assistant_msg[:5000],
+            "rating": rating,
+            "feedback_note": latest["content"],
+            "embedding": embedding,
+        }).execute()
+        print(f"Saved conversational feedback: {rating} - {latest['content'][:50]}")
+    except Exception as e:
+        print(f"Failed to save conversational feedback: {e}")
+
+
 @router.post("/stream")
 async def chat_stream(request: Request):
     """
@@ -117,6 +191,25 @@ async def chat_stream(request: Request):
         )
 
     latest_user_message = messages[-1]["content"]
+
+    # Auto-create session if none provided
+    if not session_id:
+        try:
+            supabase = get_supabase_client()
+            title = latest_user_message[:80] + ("..." if len(latest_user_message) > 80 else "")
+            platform_map = {"instagram": 1, "tiktok": 2, "youtube": 3}
+            content_type_map = {"caption": 1, "carousel": 2, "edm": 3, "reel_script": 4}
+            result = supabase.table("chat_sessions").insert({
+                "title": title,
+                "content_type_id": content_type_map.get(content_type),
+                "platform_id": platform_map.get(platform),
+            }).execute()
+            session_id = result.data[0]["id"]
+        except Exception as e:
+            print(f"Auto-create session failed: {e}")
+
+    # Detect conversational feedback and save for future RAG
+    _save_conversational_feedback(messages, content_type, platform)
 
     # Step 1: Research the topic via Perplexity (runs before streaming)
     research = research_topic(
@@ -154,20 +247,30 @@ async def chat_stream(request: Request):
 
         claude_messages.append({"role": m["role"], "content": content})
 
-    # Step 5: Stream response
-    def generate():
-        client = anthropic.Anthropic()
+    # Step 5: Stream response (async for Vercel ASGI compatibility)
+    async def generate():
+        api_key = os.getenv("ANTHROPIC_API_KEY", "")
+        if not api_key:
+            yield "[Error: ANTHROPIC_API_KEY not set]"
+            return
+
+        client = anthropic.AsyncAnthropic(api_key=api_key)
         full_response = []
 
-        with client.messages.stream(
-            model="claude-sonnet-4-20250514",
-            max_tokens=4096,
-            system=system_prompt,
-            messages=claude_messages,
-        ) as stream:
-            for text in stream.text_stream:
-                full_response.append(text)
-                yield text
+        try:
+            async with client.messages.stream(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                system=system_prompt,
+                messages=claude_messages,
+            ) as stream:
+                async for text in stream.text_stream:
+                    full_response.append(text)
+                    yield text
+        except Exception as e:
+            print(f"Streaming error: {type(e).__name__}: {e}")
+            yield f"\n\n[Error: {type(e).__name__}: {str(e)}]"
+            return
 
         # Save messages to database (best-effort)
         if session_id:
@@ -194,6 +297,7 @@ async def chat_stream(request: Request):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
+            "X-Session-Id": session_id or "",
         },
     )
 
